@@ -1,9 +1,9 @@
 const hre = require("hardhat");
-const LiquidAlphaDeploy = require("../ignition/modules/LiquidAlphaDeploy.js");
+const LiquidAlphaDeploy = require("../ignition/modules/AlphaYieldPoolDeploy.js");
 
 async function main() {
 
-  const { ls_alpha } = await hre.ignition.deploy(LiquidAlphaDeploy, {
+  const { alpha_yp } = await hre.ignition.deploy(LiquidAlphaDeploy, {
     parameters: {
         "LiquidAlphaDeploy": {
             "name": "LiquidAlpha3",
@@ -15,10 +15,10 @@ async function main() {
   });
   const taoIn   = hre.ethers.parseUnits("0.1", 18);
 
-  console.log("Liquid Alpha address:", await ls_alpha.getAddress());
+  console.log("Liquid Alpha address:", await alpha_yp.getAddress());
 
   const receiving_address = '';
-  const paymentTx = await ls_alpha.depositTao(receiving_address, {value: taoIn})
+  const paymentTx = await alpha_yp.depositTao(receiving_address, {value: taoIn})
 
   await paymentTx.wait();
   console.log("Tx mined:", paymentTx.hash);

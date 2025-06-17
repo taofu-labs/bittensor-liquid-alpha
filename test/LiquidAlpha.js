@@ -5,6 +5,6 @@ const {
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 
-describe("Liquid Alpha", function () {
+describe("AlphaYieldPool", function () {
 
 });
