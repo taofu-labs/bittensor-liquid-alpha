@@ -48,6 +48,12 @@ contract AlphaYieldPool is ERC20, ERC20Permit, ReentrancyGuard {
         uint256 taoAmount,
         bytes32 indexed to
     );
+    event WithdrawTaoAfterDereg(
+        address indexed sender,
+        uint256 sharesBurned,
+        uint256 taoAmount,
+        bytes32 indexed to
+    );
 
     constructor(
         string memory _name,
@@ -104,13 +110,13 @@ contract AlphaYieldPool is ERC20, ERC20Permit, ReentrancyGuard {
         _withdrawTao(shares, to, true, limitPrice, allowPartial);
     }
 
-    function withdrawAsAlpha(uint256 amount, bytes32 to) external nonReentrant {
-        require(amount > 0, "zero amount");
+    function withdrawAsAlpha(uint256 shares, bytes32 to) external nonReentrant {
+        require(shares > 0, "zero amount");
         bytes32 hotkey = validatorHotkey();
         uint256 current_alpha = staking.getStake(hotkey, contractSS58Pub, netuid);
-        uint256 alphaOut = (current_alpha * amount) / totalSupply();
+        uint256 alphaOut = (current_alpha * shares) / totalSupply();
         require(alphaOut > 0, "alphaOut zero");
-        _burn(msg.sender, amount);
+        _burn(msg.sender, shares);
         (bool success, ) = address(staking).call{ gas: gasleft() }(
             abi.encodeWithSelector(
                 IStaking.transferStake.selector,
@@ -122,7 +128,26 @@ contract AlphaYieldPool is ERC20, ERC20Permit, ReentrancyGuard {
             )
         );
         require(success, "stake transfer failed");
-        emit WithdrawAsAlpha(msg.sender, amount, alphaOut, to);
+        emit WithdrawAsAlpha(msg.sender, shares, alphaOut, to);
+    }
+
+    /// @notice Burn pool tokens → redeem TAO. Should only be used after a subnet has
+    /// deregistered and all alpha has be force swapped to tao. 
+    function withdrawTaoAfterDeregistration(uint256 shares, bytes32 to) external nonReentrant {
+        require(shares > 0, "zero amount");
+        _burn(msg.sender, shares);
+        uint256 taoBalance = address(this).balance;
+        uint256 taoShare = (taoBalance * shares) / totalSupply();
+
+        (bool sent, ) = address(balance_transfer).call{ value: taoShare, gas: gasleft() }(
+            abi.encodeWithSelector(
+                ISubtensorBalanceTransfer.transfer.selector,
+                to
+            )
+        );
+        require(sent, "Transfer Failed");
+
+        emit WithdrawTaoAfterDereg(msg.sender, shares, taoShare, to);
     }
 
     /* ---------------------------------------------------------------------- */

@@ -9,7 +9,6 @@
 *   **Resilience to Bittensor Upgrades**:
     *   How can the contract be made more resilient against future upgrades or changes to the Bittensor network, particularly to the precompiled contract addresses or their interfaces?
     *   What are the pros and cons of using a proxy contract pattern (e.g., UUPS or Transparent Upgradeable Proxy) for `AlphaYieldPool.sol` to allow for future logic upgrades without requiring users to migrate their tokens?
-*   **Subnet Deregistration**: How should the contract handle scenarios where the `netuid` it is staked to becomes deregistered? Is there a mechanism to detect this and allow for graceful migration of stake or funds?
 
 ---
 
@@ -31,7 +30,7 @@ The AlphaYieldPool token itself is an `ERC20` token, also inheriting `ERC20Permi
 
 ### Core Functionality
 
-All core user-facing functions (`depositTao`, `withdrawAsAlpha`, `withdrawAsTao`) are protected by the `nonReentrant` modifier.
+All core user-facing functions (`depositTao(WithLimit)`, `withdrawAsAlpha`, `withdrawAsTao(WithLimit)`) are protected by the `nonReentrant` modifier.
 
 *   **`depositTao(WithLimit)(address to)`**:
     *   Accepts native TAO ( `msg.value`).
@@ -91,6 +90,24 @@ The `AlphaYieldPool` contract interacts with several key components of the Bitte
 
 7. **Fallback and Receive Functions**:
     *   The `receive() external payable` and `fallback() external payable` functions are implemented to explicitly `revert`. This prevents accidental direct TAO transfers to the contract, enforcing that all deposits must go through the `depositTao` function to ensure proper share accounting and minting of AlphaYieldPool tokens.
+
+## Subnet Deregistration Handling
+When the target subnet (netuid) is deregistered, the pool must liquidate all staked Alpha back
+into native TAO and hold it in the contract. At that point, AlphaYieldPool tokens can no longer
+be redeemed as Alpha; instead, holders burn their pool tokens to withdraw their pro-rata share
+of the accumulated TAO via `withdrawTaoAfterDeregistration`. This mechanism guarantees that, upon subnet deregistration, all pool participants can exit fully in TAO, receiving exactly their pro-rata share of the liquidated assets.
+The total share is calculated as:
+
+**TAO Share Calculation**
+
+Given:
+- `taoBalance`: total TAO held by the contract  
+- `shares`: number of pool tokens being burned  
+- `totalSupply()`: current total supply of pool tokens  
+
+```math
+\text{taoShare} = \frac{\text{taoBalance} \times \text{shares}}{\text{totalSupply()}}
+```
 
 ## Helper Contracts
 
