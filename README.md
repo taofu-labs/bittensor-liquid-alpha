@@ -4,12 +4,6 @@
 
 **This code is experimental, has not been professionally audited, and has not undergone comprehensive testing. It should NOT be used in a production environment or with real funds. Use at your own risk.**
 
-## Open Questions & Future Considerations
-
-*   **Resilience to Bittensor Upgrades**:
-    *   How can the contract be made more resilient against future upgrades or changes to the Bittensor network, particularly to the precompiled contract addresses or their interfaces?
-    *   What are the pros and cons of using a proxy contract pattern (e.g., UUPS or Transparent Upgradeable Proxy) for `AlphaYieldPool.sol` to allow for future logic upgrades without requiring users to migrate their tokens?
-
 ---
 
 This directory contains the Solidity smart contracts for the AlphaYieldPool protocol. The core contract is `AlphaYieldPool.sol`, which defines an ERC-20 token representing a share in a pooled Alpha position on the Bittensor network.
@@ -30,7 +24,7 @@ The AlphaYieldPool token itself is an `ERC20` token, also inheriting `ERC20Permi
 
 ### Core Functionality
 
-All core user-facing functions (`depositTao(WithLimit)`, `withdrawAsAlpha`, `withdrawAsTao(WithLimit)`) are protected by the `nonReentrant` modifier.
+All core user-facing functions (`depositTao(WithLimit)`, `withdrawAsAlpha`, `withdrawAsTao(WithLimit)`, `withdrawAsTaoEvm(WithLimit)`) are protected by the `nonReentrant` modifier.
 
 *   **`depositTao(WithLimit)(address to)`**:
     *   Accepts native TAO ( `msg.value`).
@@ -46,6 +40,11 @@ All core user-facing functions (`depositTao(WithLimit)`, `withdrawAsAlpha`, `wit
     *   Calculates the pro-rata share of Alpha to be redeemed (including rewards).
     *   Unstakes this amount of Alpha from the validator's `hotkey` on `netuid` using `removeStake` on the `IStaking` interface. The unstaked TAO is sent to the contract's address.
     *   Transfers the received native TAO to the user's specified `to` SS58 address using the `ISubtensorBalanceTransfer` precompile.
+*   **`withdrawAsTaoEvm(WithLimit)(uint256 amount, address to)`**:
+    *   Allows users to burn a specified `amount` of their AlphaYieldPool tokens.
+    *   Calculates the pro-rata share of Alpha to be redeemed (including rewards).
+    *   Unstakes this amount of Alpha from the validator's `hotkey` on `netuid` using `removeStake` on the `IStaking` interface. The unstaked TAO is sent to the contract's address.
+    *   Transfers the received native TAO to the user's specified `to` EVM address using a standard `call`.
 
 ### Interfaces and Dependencies
 
@@ -82,11 +81,12 @@ The `AlphaYieldPool` contract interacts with several key components of the Bitte
     *   The contract doesn't assume a fixed hotkey. Instead, it uses `metagraph.getHotkey(netuid, validatorUid)` (via the internal `_validatorHotkey()` helper) to dynamically fetch the hotkey of the target validator. This allows flexibility if the validator changes its hotkey.
 
 5.  **Withdrawal Options**:
-    *   Providing two distinct withdrawal methods (`withdrawAsAlpha` and `withdrawAsTao`) gives users flexibility:
+    *   Providing three distinct withdrawal methods (`withdrawAsAlpha`, `withdrawAsTao`, and `withdrawAsTaoEvm`) gives users flexibility:
         *   `withdrawAsAlpha`: For users who want to receive their staked position directly on
             a specified coldkey without unstaking the alpha. This includes their share of accrued
             Alpha rewards.
-        *   `withdrawAsTao(WithLimit)`: For users who want to exit their staked position and receive TAO. This includes their share of accrued Alpha rewards.
+        *   `withdrawAsTao(WithLimit)`: For users who want to exit their staked position and receive TAO sent to an SS58 address. This includes their share of accrued Alpha rewards.
+        *   `withdrawAsTaoEvm(WithLimit)`: For users who want to exit their staked position and receive TAO sent to an EVM address. This includes their share of accrued Alpha rewards.
 
 7. **Fallback and Receive Functions**:
     *   The `receive() external payable` and `fallback() external payable` functions are implemented to explicitly `revert`. This prevents accidental direct TAO transfers to the contract, enforcing that all deposits must go through the `depositTao` function to ensure proper share accounting and minting of AlphaYieldPool tokens.

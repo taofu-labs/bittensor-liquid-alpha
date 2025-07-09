@@ -1,7 +1,7 @@
 {
     "LiquidAlphaDeploy": {
-        "name": "LiquidAlpha3",
-        "symbol": "lstA3",
+        "name": "SN3-Test Alpha Yield Pool",
+        "symbol": "SN3-Test",
         "netuid": 3,
         "uid": 6
     }
